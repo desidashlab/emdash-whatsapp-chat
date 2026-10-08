@@ -144,12 +144,12 @@ describe("admin screens", () => {
 		expect(w.blocks.filter((b) => b.type === "section").length).toBe(2);
 	});
 
-	it("remembers the chosen period and resets everything", async () => {
+	it("lists pages with this week and all time, and resets everything", async () => {
 		await tap({ path: "/", title: "Home" });
-		const changed = await host.admin.act("/overview", "set_range", { value: "30" });
-		const table = changed.blocks.find((b) => b.type === "table");
+		const page = await host.admin.loadPage("/overview");
+		const table = page.blocks.find((b) => b.type === "table");
 		const cols = table && "columns" in table ? table.columns.map((c) => c.label) : [];
-		expect(cols).toContain("Last 30 days");
+		expect(cols).toEqual(["Page", "Last 7 days", "All time", "Last tap", ""]);
 
 		const all = await host.admin.act("/overview", "reset_all");
 		expect(all.toast?.message).toBe("All counts reset");

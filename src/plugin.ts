@@ -214,28 +214,6 @@ async function allTimeCard(ctx: PluginContext) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Period picker                                                       */
-/* ------------------------------------------------------------------ */
-
-const RANGES = [
-	{ days: 7, label: "Last 7 days" },
-	{ days: 30, label: "Last 30 days" },
-	{ days: 90, label: "Last 3 months" },
-	{ days: 365, label: "Last 12 months" },
-	{ days: 0, label: "All time" },
-] as const;
-const RANGE_KEY = "ui:rangeDays";
-
-function rangeLabel(days: number): string {
-	return RANGES.find((r) => r.days === days)?.label ?? "Last 7 days";
-}
-
-async function currentRange(ctx: PluginContext): Promise<number> {
-	const saved = await ctx.kv.get<number>(RANGE_KEY);
-	return typeof saved === "number" && RANGES.some((r) => r.days === saved) ? saved : 7;
-}
-
-/* ------------------------------------------------------------------ */
 /* Theme snippet                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -302,21 +280,21 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	const s = await loadSettings(ctx);
 	const blocks: Block[] = [{ type: "header", text: "WhatsApp Chat" }];
 
-	// Status, so the owner sees at a glance what the visitor gets.
+	// What the visitor gets, so the owner can check it at a glance.
 	blocks.push(
+		{
+			type: "section",
+			text: s.phone ? "What visitors see" : "Add your WhatsApp number to switch the button on.",
+			accessory: { type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "secondary" },
+		},
 		{
 			type: "fields",
 			fields: [
-				{ label: "WhatsApp number", value: s.phone ? `+${s.phone}` : "Not set" },
-				{ label: "Button", value: s.buttonText || "Icon only" },
+				{ label: "Chats go to", value: s.phone ? `+${s.phone}` : "Not set" },
+				{ label: "Button", value: `${s.buttonText || "Icon only"}, ${s.position === "left" ? "bottom left" : "bottom right"}` },
+				{ label: "Message starts with", value: s.message.replace(/\{title\}/g, "the page title") },
 				{ label: "Greeting", value: s.greeting && s.greetingText ? s.greetingText : "Off" },
-				{ label: "Position", value: s.position === "left" ? "Bottom left" : "Bottom right" },
 			],
-		},
-		{
-			type: "section",
-			text: s.phone ? "" : "Add your WhatsApp number to switch the button on.",
-			accessory: { type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "secondary" },
 		},
 	);
 
@@ -342,13 +320,11 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 		return { blocks };
 	}
 
-	const days = await currentRange(ctx);
-	const label = rangeLabel(days);
 	const [t, w, all, top] = await Promise.all([todayCard(ctx), weekCard(ctx), allTimeCard(ctx), topPages(ctx, 50)]);
 	const rows = await Promise.all(
 		top.map(async (r) => ({
 			title: r.data.title,
-			range: await pageSum(ctx, r.id, days, r.data.total),
+			week: await pageSum(ctx, r.id, 7, r.data.total),
 			total: r.data.total,
 			last: r.data.lastTapAt,
 			open:
@@ -360,22 +336,13 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 
 	blocks.push(
 		{ type: "divider" },
-		{
-			type: "section",
-			text: `Chat taps, ${label.toLowerCase()}.`,
-			accessory: {
-				type: "menu",
-				action_id: "set_range",
-				label,
-				items: RANGES.map((r) => ({ label: r.label, value: String(r.days) })),
-			},
-		},
+		{ type: "header", text: "Chats started" },
 		{ type: "stats", items: [t, w, all] },
 		{
 			type: "table",
 			columns: [
 				{ key: "title", label: "Page" },
-				{ key: "range", label: days === 0 ? "Taps" : label, format: "number" },
+				{ key: "week", label: "Last 7 days", format: "number" },
 				{ key: "total", label: "All time", format: "number" },
 				{ key: "last", label: "Last tap", format: "relative_time" },
 				{ key: "open", label: "", format: "element" },
@@ -572,11 +539,6 @@ const plugin: SandboxedPlugin = {
 			handler: async (routeCtx, ctx) => {
 				const i = (routeCtx.input ?? {}) as { type?: string; action_id?: string; value?: unknown; page?: string };
 				if (i.type === "block_action") {
-					if (i.action_id === "set_range") {
-						const days = Number(i.value);
-						if (RANGES.some((r) => r.days === days)) await ctx.kv.set(RANGE_KEY, days);
-						return overviewPage(ctx);
-					}
 					if (i.action_id === "reset_all") {
 						const { pages, daily, siteDaily } = stores(ctx);
 						await purge(pages, {});
