@@ -13,6 +13,19 @@
 	"security": { "email": "desidashlab@gmail.com" },
 	"repo": "https://github.com/desidashlab/emdash-whatsapp-chat",
 
+	"release": {
+		"artifacts": {
+			"icon": { "file": "assets/icon.png" },
+			"banner": { "file": "assets/banner.png" },
+			"screenshots": [
+				{ "file": "assets/screenshot-site.jpg" },
+				{ "file": "assets/screenshot-overview.jpg" },
+				{ "file": "assets/screenshot-dashboard.jpg" },
+				{ "file": "assets/screenshot-editor.jpg" }
+			]
+		}
+	},
+
 	"sections": {
 		"installation": { "file": "docs/installation.md" },
 		"faq": { "file": "docs/faq.md" },
