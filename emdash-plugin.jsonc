@@ -55,7 +55,7 @@
 			},
 			"message": {
 				"label": "Message the visitor starts with",
-				"description": "{title} becomes the page title, so you know what they were reading.",
+				"description": "{title} becomes the page title and {url} the page link, so you know what they were reading.",
 				"type": "string",
 				"default": "Hi! I was reading \"{title}\" on your site and have a question.",
 				"multiline": true

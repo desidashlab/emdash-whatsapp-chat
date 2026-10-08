@@ -54,12 +54,14 @@ describe("the button", () => {
 		await host.fixtures.plugin.setting("buttonText", "");
 		await host.fixtures.plugin.setting("position", "left");
 		await host.fixtures.plugin.setting("greeting", false);
-		await host.fixtures.plugin.setting("message", "Hello from {title}");
+		await host.fixtures.plugin.setting("message", "Hello from {title} {url}");
 		const c = await config({ path: "/x", title: "X" });
 		expect(c.buttonText).toBe("");
 		expect(c.position).toBe("left");
 		expect(c.greeting).toBe(false);
-		expect(c.href).toBe("https://wa.me/919876543210?text=" + encodeURIComponent("Hello from X"));
+		const decoded = decodeURIComponent(c.href!.split("text=")[1]);
+		expect(decoded.startsWith("Hello from X http")).toBe(true);
+		expect(decoded.endsWith("/x")).toBe(true);
 	});
 });
 
@@ -122,6 +124,8 @@ describe("admin screens", () => {
 		const before = await host.admin.loadPage("/overview");
 		const t1 = before.blocks.map((b) => b.type);
 		expect(t1).toContain("fields");
+		const test = before.blocks.find((b) => b.type === "section" && "accessory" in b && b.accessory?.type === "link" && b.accessory.label === "Open a test chat");
+		expect(test).toBeDefined();
 		expect(t1).toContain("banner");
 		expect(t1).toContain("code");
 		expect(t1).not.toContain("table");

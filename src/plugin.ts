@@ -292,11 +292,25 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 			fields: [
 				{ label: "Chats go to", value: s.phone ? `+${s.phone}` : "Not set" },
 				{ label: "Button", value: `${s.buttonText || "Icon only"}, ${s.position === "left" ? "bottom left" : "bottom right"}` },
-				{ label: "Message starts with", value: s.message.replace(/\{title\}/g, "the page title") },
+				{ label: "Message starts with", value: s.message.replace(/\{title\}/g, "the page title").replace(/\{url\}/g, "the page link") },
 				{ label: "Greeting", value: s.greeting && s.greetingText ? s.greetingText : "Off" },
 			],
 		},
 	);
+	if (s.phone) {
+		blocks.push({
+			type: "section",
+			text: "Try it yourself: this opens a chat with your number, exactly as a visitor would get it.",
+			accessory: {
+				type: "link",
+				label: "Open a test chat",
+				target: {
+					kind: "external",
+					url: `https://wa.me/${s.phone}?text=${encodeURIComponent(s.message.replace(/\{title\}/g, "Test").replace(/\{url\}/g, ctx.site.url))}`,
+				},
+			},
+		});
+	}
 
 	const setup: Block[] = [
 		{
@@ -488,7 +502,8 @@ const plugin: SandboxedPlugin = {
 					const own = await stores(ctx).numbers.get(page.key);
 					if (own && digitsOnly(own.phone)) phone = digitsOnly(own.phone);
 				}
-				const text = s.message.replace(/\{title\}/g, title);
+				const url = page?.path ? ctx.url(page.path) : ctx.site.url;
+				const text = s.message.replace(/\{title\}/g, title).replace(/\{url\}/g, url);
 				return {
 					enabled: true,
 					href: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,

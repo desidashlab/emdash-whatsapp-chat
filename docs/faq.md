@@ -6,6 +6,10 @@ No. The button opens a normal WhatsApp chat with your number, the same as a wa.m
 
 A green WhatsApp button in the bottom corner. Tapping it opens WhatsApp on a phone, or WhatsApp Web on a computer, with your number and the message you set, for example "Hi! I was reading About us on your site and have a question."
 
+## How do I know which page the visitor was on?
+
+Put {title} or {url} in the message setting. {title} becomes the page title and {url} the page link, so the first message tells you exactly where they were.
+
 ## Can one page go to a different number?
 
 Yes. Open that post or page in the editor and use the **WhatsApp** box in the sidebar. For example, a product page can go to the sales line while the rest of the site goes to the main number.

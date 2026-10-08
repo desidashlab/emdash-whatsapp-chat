@@ -5,7 +5,7 @@ A WhatsApp button on every page of your [EmDash CMS](https://emdashcms.com) site
 ## What you get
 
 - **The button**: bottom right or left, with your text or icon only.
-- **A ready-typed message** that can include the page title, so you know what the visitor was reading.
+- **A ready-typed message** that can include the page title and link, so you know what the visitor was reading.
 - **A greeting** shown once per visit, for example "We usually reply within an hour."
 - **A different number for one entry**, from the editor sidebar. Handy for a sales line on product pages.
 - **Tap counts per page**: Dashboard card with today, last 7 days, all time, and the pages most chats start from; a full page with a period picker and the list.
@@ -23,7 +23,7 @@ Only taps are counted, per page. No cookies, nothing personal stored.
 | Setting | Default |
 |---|---|
 | WhatsApp number | empty, the button is hidden until set |
-| Message the visitor starts with | Hi! I was reading "{title}" on your site and have a question. |
+| Message the visitor starts with | Hi! I was reading "{title}" on your site and have a question. {url} adds the page link. |
 | Button text | Chat with us |
 | Button position | Bottom right |
 | Show a greeting | on |
