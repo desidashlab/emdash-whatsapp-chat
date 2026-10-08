@@ -1,0 +1,91 @@
+{
+	"$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json",
+
+	"slug": "whatsapp-chat",
+	"publisher": "did:plc:vvm75pgx6ihqfuil7y5awyge",
+
+	"name": "WhatsApp Chat Button",
+	"description": "A WhatsApp button on every page. Visitors tap it and start chatting with you. See which pages bring the most chats.",
+	"keywords": ["whatsapp", "chat", "contact", "click to chat", "support"],
+
+	"license": "MIT",
+	"author": { "name": "DesiDash Lab" },
+	"security": { "email": "desidashlab@gmail.com" },
+	"repo": "https://github.com/desidashlab/emdash-whatsapp-chat",
+
+	"sections": {
+		"installation": { "file": "docs/installation.md" },
+		"faq": { "file": "docs/faq.md" },
+		"changelog": { "file": "docs/changelog.md" }
+	},
+
+	// Read entries only to show page titles in the tap counts.
+	// The WhatsApp link opens in the visitor's own browser; nothing goes through your site.
+	"capabilities": ["content:read"],
+	"allowedHosts": [],
+
+	"storage": {
+		// One row per page: running total of taps and the page title.
+		"pages": {
+			"indexes": ["total", "lastTapAt"]
+		},
+		// One row per page per day.
+		"daily": {
+			"indexes": ["day", "page", ["page", "day"]]
+		},
+		// One row per day for the whole site, so period sums stay fast.
+		"sitedaily": {
+			"indexes": ["day"]
+		},
+		// A different number for one entry, saved from the editor.
+		"numbers": {
+			"indexes": []
+		}
+	},
+
+	"admin": {
+		"pages": [{ "path": "/overview", "label": "WhatsApp Chat", "icon": "chat" }],
+		"widgets": [{ "id": "chats", "title": "WhatsApp chats", "size": "half" }],
+		"editorPanels": [{ "id": "whatsapp", "title": "WhatsApp", "route": "editor/whatsapp" }],
+		"settingsSchema": {
+			"phone": {
+				"label": "WhatsApp number",
+				"description": "With country code, for example 91 98765 43210. The button appears once this is set.",
+				"type": "string"
+			},
+			"message": {
+				"label": "Message the visitor starts with",
+				"description": "{title} becomes the page title, so you know what they were reading.",
+				"type": "string",
+				"default": "Hi! I was reading \"{title}\" on your site and have a question.",
+				"multiline": true
+			},
+			"buttonText": {
+				"label": "Button text",
+				"description": "Leave empty for the icon only.",
+				"type": "string",
+				"default": "Chat with us"
+			},
+			"position": {
+				"label": "Button position",
+				"type": "select",
+				"options": [
+					{ "value": "right", "label": "Bottom right" },
+					{ "value": "left", "label": "Bottom left" }
+				],
+				"default": "right"
+			},
+			"greeting": {
+				"label": "Show a greeting",
+				"description": "A small message next to the button, shown once per visit.",
+				"type": "boolean",
+				"default": true
+			},
+			"greetingText": {
+				"label": "Greeting text",
+				"type": "string",
+				"default": "Hi! Questions? We usually reply within an hour."
+			}
+		}
+	}
+}
