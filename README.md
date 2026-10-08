@@ -8,7 +8,7 @@ A WhatsApp button on every page of your [EmDash CMS](https://emdashcms.com) site
 - **A ready-typed message** that can include the page title and link, so you know what the visitor was reading.
 - **A greeting** shown once per visit, for example "We usually reply within an hour."
 - **A different number for one entry**, from the editor sidebar. Handy for a sales line on product pages.
-- **Tap counts per page**: Dashboard card with today, last 7 days, all time, and the pages most chats start from; a full page with a period picker and the list.
+- **Tap counts per page**: Dashboard card with today, last 7 days, all time, and the pages most chats start from; a full page with the list of pages by taps.
 
 Only taps are counted, per page. No cookies, nothing personal stored.
 
