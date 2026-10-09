@@ -123,7 +123,7 @@ describe("the page", () => {
 		await host.fixtures.plugin.setting("phone", "919876543210");
 		const before = await host.admin.loadPage("/overview");
 		const t1 = before.blocks.map((b) => b.type);
-		expect(t1).toContain("fields");
+		expect(t1).not.toContain("fields");
 		expect(t1).toContain("banner");
 		expect(t1).toContain("code");
 		const test = before.blocks.find((b) => b.type === "section" && "accessory" in b && b.accessory?.type === "link" && b.accessory.label === "Open a test chat");
