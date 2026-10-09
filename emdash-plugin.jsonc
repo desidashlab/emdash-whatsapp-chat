@@ -45,7 +45,7 @@
 		"totals": {
 			"indexes": []
 		},
-		// A different number for one entry, saved from the editor.
+		// Per-entry choices from the editor: hide the button, or a different number.
 		"numbers": {
 			"indexes": []
 		}

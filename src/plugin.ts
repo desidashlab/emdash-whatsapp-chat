@@ -17,9 +17,10 @@ interface TotalRow {
 	count: number;
 }
 
-/** A different number for one entry, saved from the editor panel. Id is "collection:entryId". */
+/** Per-entry choices from the editor panel. Id is "collection:entryId". */
 interface NumberRow {
-	phone: string;
+	phone?: string;
+	hidden?: boolean;
 }
 
 const RETENTION_DAYS = 365;
@@ -240,22 +241,29 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	return { blocks };
 }
 
-function editorPanel(saved: string): BlockResponse {
+function editorPanel(saved: NumberRow): BlockResponse {
 	return {
 		blocks: [
 			{
 				type: "form",
-				block_id: "number",
+				block_id: "entry",
 				fields: [
+					{
+						type: "toggle",
+						action_id: "hidden",
+						label: "Hide the button on this entry",
+						description: "For a checkout or landing page, for example.",
+						initial_value: saved.hidden === true,
+					},
 					{
 						type: "text_input",
 						action_id: "phone",
 						label: "Different WhatsApp number for this entry",
 						placeholder: "Leave empty to use the site number",
-						initial_value: saved,
+						initial_value: saved.phone ?? "",
 					},
 				],
-				submit: { label: "Save", action_id: "save_number" },
+				submit: { label: "Save", action_id: "save_entry" },
 			},
 		],
 	};
@@ -314,7 +322,8 @@ const plugin: SandboxedPlugin = {
 				let phone = s.phone;
 				if (collection && id) {
 					const own = await stores(ctx).numbers.get(`${collection}:${id}`);
-					if (own && digitsOnly(own.phone)) phone = digitsOnly(own.phone);
+					if (own?.hidden) return { enabled: false };
+					if (own?.phone && digitsOnly(own.phone)) phone = digitsOnly(own.phone);
 				}
 				const text = s.message.replace(/\{title\}/g, title).replace(/\{url\}/g, ctx.url(path));
 				return {
@@ -350,7 +359,7 @@ const plugin: SandboxedPlugin = {
 			},
 		},
 
-		/** Editor sidebar: a different number for this entry. */
+		/** Editor sidebar: hide the button on this entry, or give it a different number. */
 		"editor/whatsapp": {
 			permission: "plugins:manage",
 			handler: async (routeCtx, ctx) => {
@@ -360,13 +369,17 @@ const plugin: SandboxedPlugin = {
 				const { numbers } = stores(ctx);
 				const i = (routeCtx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown> };
 
-				if (i.type === "form_submit" && i.action_id === "save_number") {
+				if (i.type === "form_submit" && i.action_id === "save_entry") {
 					const phone = typeof i.values?.phone === "string" ? digitsOnly(i.values.phone) : "";
-					if (phone) await numbers.put(key, { phone });
+					const hidden = i.values?.hidden === true;
+					const row: NumberRow = {};
+					if (phone) row.phone = phone;
+					if (hidden) row.hidden = true;
+					if (Object.keys(row).length) await numbers.put(key, row);
 					else await numbers.delete(key);
-					return { ...editorPanel(phone), toast: { type: "success", message: "Saved" } };
+					return { ...editorPanel(row), toast: { type: "success", message: "Saved" } };
 				}
-				return editorPanel((await numbers.get(key))?.phone ?? "");
+				return editorPanel((await numbers.get(key)) ?? {});
 			},
 		},
 	},

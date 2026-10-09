@@ -7,7 +7,8 @@ A WhatsApp button on every page of your [EmDash CMS](https://emdashcms.com) site
 - **The button**: bottom right or left, with your text or icon only.
 - **A ready-typed message** that can include the page title and link, so you know what the visitor was reading.
 - **A greeting** shown once per visit, for example "We usually reply within an hour."
-- **A different number for one entry**, from the editor sidebar. Handy for a sales line on product pages.
+- **Hide it on one entry**, from the editor sidebar. For a checkout or a landing page.
+- **A different number for one entry**, from the same sidebar. Handy for a sales line on product pages.
 - **One line on the WhatsApp Chat page**: how many times visitors tapped the button this week and in total. So you know it is working and worth it.
 
 Only the number of taps is counted. No cookies, nothing personal stored, and the plugin needs no access to your content.

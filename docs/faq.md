@@ -21,3 +21,7 @@ On the WhatsApp Chat page, in one line: how many times visitors tapped the butto
 ## Does it track visitors?
 
 No. Only the number of taps is counted. No cookies, nothing personal stored, and the chat itself happens in the visitor's own WhatsApp.
+
+## Can I hide it on some pages?
+
+Yes. Open the entry in the editor, find the WhatsApp panel in the sidebar, switch on "Hide the button on this entry" and save. It stays on everywhere else. Use it for a checkout page or a landing page where you do not want a chat starting.
