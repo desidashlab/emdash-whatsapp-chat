@@ -6,33 +6,22 @@ import type { Block, BlockResponse } from "@emdash-cms/blocks";
 /* What is stored                                                      */
 /* ------------------------------------------------------------------ */
 
-/** One row per page that received taps. Key is "posts:ID" for entries, "path:/about" for other pages. */
-interface PageRow {
-	collection: string | null;
-	entryId: string | null;
-	path: string | null;
-	title: string;
-	total: number;
-	lastTapAt: string;
-}
-
-interface DailyRow {
-	page: string;
+/** Taps per day for the whole site. Kept for one year. */
+interface DayRow {
 	day: string;
 	count: number;
 }
 
-interface SiteDayRow {
-	day: string;
+/** One row, id "all": taps since install. Kept forever. */
+interface TotalRow {
 	count: number;
 }
 
-/** A different number for one entry, saved from the editor panel. */
+/** A different number for one entry, saved from the editor panel. Id is "collection:entryId". */
 interface NumberRow {
 	phone: string;
 }
 
-/** Day-by-day rows are kept for one year. Totals are kept forever. */
 const RETENTION_DAYS = 365;
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +62,6 @@ async function loadSettings(ctx: PluginContext): Promise<Settings> {
 /* ------------------------------------------------------------------ */
 
 const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-const PATH_RE = /^\/[A-Za-z0-9_\-./%]{0,256}$/;
 
 function digitsOnly(v: string): string {
 	return v.replace(/\D+/g, "");
@@ -91,126 +79,67 @@ function fmt(n: number): string {
 	return new Intl.NumberFormat("en-US").format(n);
 }
 
-function taps(n: number): string {
-	return `${fmt(n)} ${n === 1 ? "tap" : "taps"}`;
-}
-
-function titleOf(data: Record<string, unknown>, fallback: string): string {
-	const t = data.title ?? data.name ?? data.heading;
-	return typeof t === "string" && t.trim() ? t.trim() : fallback;
-}
-
 function stores(ctx: PluginContext) {
 	return {
-		pages: ctx.storage.pages as StorageCollection<PageRow>,
-		daily: ctx.storage.daily as StorageCollection<DailyRow>,
-		siteDaily: ctx.storage.sitedaily as StorageCollection<SiteDayRow>,
+		days: ctx.storage.days as StorageCollection<DayRow>,
+		totals: ctx.storage.totals as StorageCollection<TotalRow>,
 		numbers: ctx.storage.numbers as StorageCollection<NumberRow>,
 	};
 }
 
 /** Add one to a counter row, creating it if needed. */
-async function bump<T extends object>(
-	col: StorageCollection<T>,
-	id: string,
-	field: string,
-	create: () => T,
-	set?: Partial<T>,
-): Promise<void> {
-	const res = await col.updateIf(id, {
-		where: {},
-		set: set as Record<string, unknown> | undefined,
-		delta: { [field]: { inc: 1 } },
-	} as never);
+async function bump<T extends object>(col: StorageCollection<T>, id: string, create: () => T): Promise<void> {
+	const res = await col.updateIf(id, { where: {}, delta: { count: { inc: 1 } } } as never);
 	if (res.applied) return;
 	const made = await col.compareAndSet(id, null, create());
-	if (!made.applied) await col.updateIf(id, { where: {}, delta: { [field]: { inc: 1 } } } as never);
+	if (!made.applied) await col.updateIf(id, { where: {}, delta: { count: { inc: 1 } } } as never);
 }
 
-/** Which page a request is about, from the snippet's fields. */
-function pageOf(q: Record<string, unknown>): { key: string; collection: string | null; entryId: string | null; path: string | null } | null {
-	const collection = typeof q.collection === "string" ? q.collection : "";
-	const id = typeof q.id === "string" ? q.id : "";
-	const path = typeof q.path === "string" ? q.path : "";
-	if (collection && id) {
-		if (!ID_RE.test(collection) || !ID_RE.test(id)) return null;
-		return { key: `${collection}:${id}`, collection, entryId: id, path: PATH_RE.test(path) ? path : null };
-	}
-	if (!PATH_RE.test(path)) return null;
-	return { key: `path:${path}`, collection: null, entryId: null, path };
-}
-
-/* ------------------------------------------------------------------ */
-/* Counting                                                            */
-/* ------------------------------------------------------------------ */
-
-async function siteSum(ctx: PluginContext, fromDaysAgo: number, toDaysAgo: number): Promise<number> {
-	const { siteDaily } = stores(ctx);
+/** Taps between two days ago, inclusive. */
+async function tapsBetween(ctx: PluginContext, fromDaysAgo: number, toDaysAgo: number): Promise<number> {
+	const { days } = stores(ctx);
 	let sum = 0;
 	let cursor: string | undefined;
 	do {
-		const page = await siteDaily.query({
-			where: { day: { gte: daysAgo(fromDaysAgo), lte: daysAgo(toDaysAgo) } },
-			limit: 100,
-			cursor,
-		});
+		const page = await days.query({ where: { day: { gte: daysAgo(fromDaysAgo), lte: daysAgo(toDaysAgo) } }, limit: 100, cursor });
 		for (const row of page.items) sum += row.data.count;
 		cursor = page.hasMore ? page.cursor : undefined;
 	} while (cursor);
 	return sum;
 }
 
-async function pageSum(ctx: PluginContext, key: string, days: number, total: number): Promise<number> {
-	if (days === 0) return total;
-	const { daily } = stores(ctx);
-	let sum = 0;
-	let cursor: string | undefined;
-	do {
-		const page = await daily.query({ where: { page: key, day: { gte: daysAgo(days - 1) } }, limit: 100, cursor });
-		for (const row of page.items) sum += row.data.count;
-		cursor = page.hasMore ? page.cursor : undefined;
-	} while (cursor);
-	return sum;
-}
-
-async function topPages(ctx: PluginContext, limit: number) {
-	return (await stores(ctx).pages.query({ orderBy: { total: "desc" }, limit })).items;
-}
-
 /* ------------------------------------------------------------------ */
-/* Number cards, same wording as Post Views                            */
+/* The three numbers                                                   */
 /* ------------------------------------------------------------------ */
 
-async function todayCard(ctx: PluginContext) {
-	const [t, y] = await Promise.all([siteSum(ctx, 0, 0), siteSum(ctx, 1, 1)]);
-	return { label: "Today", value: fmt(t), description: `Yesterday: ${fmt(y)}` };
-}
-
-async function weekCard(ctx: PluginContext) {
-	const [cur, prev] = await Promise.all([siteSum(ctx, 6, 0), siteSum(ctx, 13, 7)]);
-	if (prev === 0) return { label: "Last 7 days", value: fmt(cur), description: "No earlier data yet" };
-	return {
-		label: "Last 7 days",
-		value: fmt(cur),
-		trend: cur === prev ? ("neutral" as const) : cur > prev ? ("up" as const) : ("down" as const),
-		description: `Last week: ${fmt(prev)}`,
-	};
-}
-
-async function allTimeCard(ctx: PluginContext) {
-	const { pages, siteDaily } = stores(ctx);
-	let total = 0;
-	let cursor: string | undefined;
-	do {
-		const page = await pages.query({ limit: 100, cursor });
-		for (const r of page.items) total += r.data.total;
-		cursor = page.hasMore ? page.cursor : undefined;
-	} while (cursor);
-	const first = (await siteDaily.query({ orderBy: { day: "asc" }, limit: 1 })).items[0]?.data.day;
-	const since = first
-		? new Date(`${first}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+async function numberCards(ctx: PluginContext) {
+	const { totals, days } = stores(ctx);
+	const [t, y, week, prevWeek, all, first] = await Promise.all([
+		tapsBetween(ctx, 0, 0),
+		tapsBetween(ctx, 1, 1),
+		tapsBetween(ctx, 6, 0),
+		tapsBetween(ctx, 13, 7),
+		totals.get("all"),
+		days.query({ orderBy: { day: "asc" }, limit: 1 }),
+	]);
+	const since = first.items[0]?.data.day;
+	const sinceText = since
+		? new Date(`${since}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
 		: "today";
-	return { label: "All time", value: fmt(total), description: `Since ${since}` };
+	const weekCard =
+		prevWeek === 0
+			? { label: "Last 7 days", value: fmt(week), description: "No earlier data yet" }
+			: {
+					label: "Last 7 days",
+					value: fmt(week),
+					trend: week === prevWeek ? ("neutral" as const) : week > prevWeek ? ("up" as const) : ("down" as const),
+					description: `Last week: ${fmt(prevWeek)}`,
+				};
+	return [
+		{ label: "Today", value: fmt(t), description: `Yesterday: ${fmt(y)}` },
+		weekCard,
+		{ label: "All time", value: fmt(all?.count ?? 0), description: `Since ${sinceText}` },
+	];
 }
 
 /* ------------------------------------------------------------------ */
@@ -251,8 +180,7 @@ function snippet(pluginId: string): string {
 		`\t\ta.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 12 12 0 0 0 4.6 4c1.7.7 2.3.8 3.2.7a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>' +`,
 		`\t\t\t(cfg.buttonText ? "<span>" + cfg.buttonText.replace(/</g, "&lt;") + "</span>" : "");`,
 		`\t\ta.addEventListener("click", () => {`,
-		`\t\t\tconst body = JSON.stringify({ collection: wa.c, id: wa.i, path: location.pathname, title: document.title });`,
-		`\t\t\tfetch(wa.tap, { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body }).catch(() => {});`,
+		`\t\t\tfetch(wa.tap, { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});`,
 		`\t\t});`,
 		`\t\tdocument.body.appendChild(a);`,
 		`\t\tif (cfg.greeting && cfg.greetingText && !sessionStorage.getItem("wa-greeted")) {`,
@@ -278,10 +206,10 @@ function snippet(pluginId: string): string {
 
 async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	const s = await loadSettings(ctx);
-	const blocks: Block[] = [{ type: "header", text: "WhatsApp Chat" }];
+	const total = (await stores(ctx).totals.get("all"))?.count ?? 0;
 
-	// What the visitor gets, so the owner can check it at a glance.
-	blocks.push(
+	const blocks: Block[] = [
+		{ type: "header", text: "WhatsApp Chat" },
 		{
 			type: "section",
 			text: s.phone ? "What visitors see" : "Add your WhatsApp number to switch the button on.",
@@ -296,7 +224,7 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 				{ label: "Greeting", value: s.greeting && s.greetingText ? s.greetingText : "Off" },
 			],
 		},
-	);
+	];
 	if (s.phone) {
 		blocks.push({
 			type: "section",
@@ -315,76 +243,19 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	const setup: Block[] = [
 		{
 			type: "context",
-			text: "Paste this once into your theme's base layout, just before </body>. It draws the button and counts taps. The chat opens in the visitor's own WhatsApp; nothing goes through your site.",
+			text: "Paste this once into your theme's base layout, just before </body>. It draws the button. The chat opens in the visitor's own WhatsApp; nothing goes through your site.",
 		},
 		{ type: "code", language: "tsx", code: snippet(ctx.plugin.id) },
 	];
-
-	const tracked = await stores(ctx).pages.count();
-	if (tracked === 0) {
+	blocks.push({ type: "divider" });
+	if (total === 0) {
 		blocks.push(
-			{ type: "divider" },
-			{
-				type: "banner",
-				title: "One step to finish setup",
-				description: "Taps start counting as soon as the snippet below is in your theme.",
-			},
+			{ type: "banner", title: "One step to finish setup", description: "The button appears on your site as soon as the snippet below is in your theme." },
 			...setup,
 		);
-		return { blocks };
+	} else {
+		blocks.push({ type: "accordion", label: "Setup", default_open: false, blocks: setup });
 	}
-
-	const [t, w, all, top] = await Promise.all([todayCard(ctx), weekCard(ctx), allTimeCard(ctx), topPages(ctx, 50)]);
-	const rows = await Promise.all(
-		top.map(async (r) => ({
-			title: r.data.title,
-			week: await pageSum(ctx, r.id, 7, r.data.total),
-			total: r.data.total,
-			last: r.data.lastTapAt,
-			open:
-				r.data.collection && r.data.entryId
-					? { type: "link", label: "Open", target: { kind: "content", collection: r.data.collection, id: r.data.entryId } }
-					: { type: "link", label: "View", target: { kind: "external", url: ctx.url(r.data.path ?? "/") } },
-		})),
-	);
-
-	blocks.push(
-		{ type: "divider" },
-		{ type: "header", text: "Chats started" },
-		{ type: "stats", items: [t, w, all] },
-		{
-			type: "table",
-			columns: [
-				{ key: "title", label: "Page" },
-				{ key: "week", label: "Last 7 days", format: "number" },
-				{ key: "total", label: "All time", format: "number" },
-				{ key: "last", label: "Last tap", format: "relative_time" },
-				{ key: "open", label: "", format: "element" },
-			],
-			rows,
-			page_action_id: "browse",
-			empty_text: "No taps yet.",
-		},
-		{
-			type: "actions",
-			elements: [
-				{
-					type: "button",
-					label: "Reset all counts",
-					action_id: "reset_all",
-					style: "secondary",
-					confirm: {
-						title: "Reset every count?",
-						text: "All tap counts will be set to zero. This cannot be undone.",
-						confirm: "Reset",
-						deny: "Cancel",
-						style: "danger",
-					},
-				},
-			],
-		},
-		{ type: "accordion", label: "Setup", default_open: false, blocks: setup },
-	);
 	return { blocks };
 }
 
@@ -403,30 +274,15 @@ async function chatsWidget(ctx: PluginContext): Promise<BlockResponse> {
 			],
 		};
 	}
-	const [t, w, all, top] = await Promise.all([todayCard(ctx), weekCard(ctx), allTimeCard(ctx), topPages(ctx, 3)]);
-	const blocks: Block[] = [{ type: "stats", items: [t, w, all] }];
-	if (top.length > 0) {
-		blocks.push({ type: "context", text: "Most chats start from" });
-		for (const r of top) {
-			blocks.push({
-				type: "section",
-				text: r.data.title,
-				accessory:
-					r.data.collection && r.data.entryId
-						? { type: "link", label: taps(r.data.total), target: { kind: "content", collection: r.data.collection, id: r.data.entryId } }
-						: { type: "link", label: taps(r.data.total), target: { kind: "plugin-page", path: "/overview" } },
-			});
-		}
-	}
-	blocks.push({
-		type: "section",
-		text: "",
-		accessory: { type: "link", label: "See all", target: { kind: "plugin-page", path: "/overview" }, appearance: "secondary" },
-	});
-	return { blocks };
+	return {
+		blocks: [
+			{ type: "stats", items: await numberCards(ctx) },
+			{ type: "context", text: "Chats started from the button on your site." },
+		],
+	};
 }
 
-function editorPanel(saved: string, row: PageRow | null): BlockResponse {
+function editorPanel(saved: string): BlockResponse {
 	return {
 		blocks: [
 			{
@@ -443,7 +299,6 @@ function editorPanel(saved: string, row: PageRow | null): BlockResponse {
 				],
 				submit: { label: "Save", action_id: "save_number" },
 			},
-			{ type: "context", text: row ? `${taps(row.total)} from this entry.` : "No chat taps from this entry yet." },
 		],
 	};
 }
@@ -452,12 +307,13 @@ function editorPanel(saved: string, row: PageRow | null): BlockResponse {
 /* Maintenance                                                         */
 /* ------------------------------------------------------------------ */
 
-async function purge<T>(col: StorageCollection<T>, where: Record<string, unknown>): Promise<number> {
+async function purgeOldDays(ctx: PluginContext): Promise<number> {
+	const { days } = stores(ctx);
 	let removed = 0;
 	for (;;) {
-		const page = await col.query({ where: where as never, limit: 100 });
+		const page = await days.query({ where: { day: { lt: daysAgo(RETENTION_DAYS) } }, limit: 100 });
 		if (page.items.length === 0) return removed;
-		removed += await col.deleteMany(page.items.map((i) => i.id));
+		removed += await days.deleteMany(page.items.map((i) => i.id));
 		if (!page.hasMore) return removed;
 	}
 }
@@ -476,10 +332,8 @@ const plugin: SandboxedPlugin = {
 		},
 		cron: async (event, ctx) => {
 			if (event.name !== "cleanup") return;
-			const { daily, siteDaily } = stores(ctx);
-			const a = await purge(daily, { day: { lt: daysAgo(RETENTION_DAYS) } });
-			const b = await purge(siteDaily, { day: { lt: daysAgo(RETENTION_DAYS) } });
-			ctx.log.info("WhatsApp Chat cleanup", { daily: a, siteDaily: b });
+			const removed = await purgeOldDays(ctx);
+			ctx.log.info("WhatsApp Chat cleanup", { removed });
 		},
 	},
 
@@ -494,16 +348,17 @@ const plugin: SandboxedPlugin = {
 				const s = await loadSettings(ctx);
 				if (!s.phone) return { enabled: false };
 				const q = (routeCtx.input ?? {}) as Record<string, unknown>;
-				const page = pageOf(q);
 				const title = typeof q.title === "string" ? q.title.slice(0, 200) : "";
+				const path = typeof q.path === "string" && q.path.startsWith("/") ? q.path.slice(0, 300) : "/";
+				const collection = typeof q.collection === "string" && ID_RE.test(q.collection) ? q.collection : "";
+				const id = typeof q.id === "string" && ID_RE.test(q.id) ? q.id : "";
 
 				let phone = s.phone;
-				if (page?.collection && page.entryId) {
-					const own = await stores(ctx).numbers.get(page.key);
+				if (collection && id) {
+					const own = await stores(ctx).numbers.get(`${collection}:${id}`);
 					if (own && digitsOnly(own.phone)) phone = digitsOnly(own.phone);
 				}
-				const url = page?.path ? ctx.url(page.path) : ctx.site.url;
-				const text = s.message.replace(/\{title\}/g, title).replace(/\{url\}/g, url);
+				const text = s.message.replace(/\{title\}/g, title).replace(/\{url\}/g, ctx.url(path));
 				return {
 					enabled: true,
 					href: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`,
@@ -515,35 +370,16 @@ const plugin: SandboxedPlugin = {
 			},
 		},
 
-		/** Public: a visitor tapped the button. */
+		/** Public: a visitor tapped the button. Counts one tap for today, nothing else is stored. */
 		tap: {
 			public: true,
 			methods: ["POST"],
 			request: { body: "json" },
-			handler: async (routeCtx, ctx) => {
-				const q = (routeCtx.input ?? {}) as Record<string, unknown>;
-				const page = pageOf(q);
-				if (!page) return { ok: false, error: "INVALID_INPUT" };
-
-				let title = typeof q.title === "string" && q.title.trim() ? q.title.trim().slice(0, 200) : page.path ?? page.key;
-				if (page.collection && page.entryId) {
-					const entry = await ctx.content!.get(page.collection, page.entryId).catch(() => null);
-					if (!entry) return { ok: false, error: "UNKNOWN_ENTRY" };
-					title = titleOf(entry.data, entry.slug ?? page.entryId);
-				}
-
-				const now = new Date().toISOString();
+			handler: async (_routeCtx, ctx) => {
 				const day = today();
-				const { pages, daily, siteDaily } = stores(ctx);
-				await bump<PageRow>(
-					pages,
-					page.key,
-					"total",
-					() => ({ collection: page.collection, entryId: page.entryId, path: page.path, title, total: 1, lastTapAt: now }),
-					{ title, lastTapAt: now },
-				);
-				await bump<DailyRow>(daily, `${page.key}:${day}`, "count", () => ({ page: page.key, day, count: 1 }));
-				await bump<SiteDayRow>(siteDaily, day, "count", () => ({ day, count: 1 }));
+				const { days, totals } = stores(ctx);
+				await bump<DayRow>(days, day, () => ({ day, count: 1 }));
+				await bump<TotalRow>(totals, "all", () => ({ count: 1 }));
 				return { ok: true };
 			},
 		},
@@ -552,16 +388,7 @@ const plugin: SandboxedPlugin = {
 		admin: {
 			permission: "plugins:manage",
 			handler: async (routeCtx, ctx) => {
-				const i = (routeCtx.input ?? {}) as { type?: string; action_id?: string; value?: unknown; page?: string };
-				if (i.type === "block_action") {
-					if (i.action_id === "reset_all") {
-						const { pages, daily, siteDaily } = stores(ctx);
-						await purge(pages, {});
-						await purge(daily, {});
-						await purge(siteDaily, {});
-						return { ...(await overviewPage(ctx)), toast: { type: "success", message: "All counts reset" } };
-					}
-				}
+				const i = (routeCtx.input ?? {}) as { page?: string };
 				if (routeCtx.ui?.surface === "dashboard-widget" || i.page === "widget:chats") return chatsWidget(ctx);
 				return overviewPage(ctx);
 			},
@@ -574,18 +401,16 @@ const plugin: SandboxedPlugin = {
 				const entry = routeCtx.ui?.entry;
 				if (!entry) return { blocks: [] };
 				const key = `${entry.collection}:${entry.id}`;
-				const { numbers, pages } = stores(ctx);
+				const { numbers } = stores(ctx);
 				const i = (routeCtx.input ?? {}) as { type?: string; action_id?: string; values?: Record<string, unknown> };
 
 				if (i.type === "form_submit" && i.action_id === "save_number") {
 					const phone = typeof i.values?.phone === "string" ? digitsOnly(i.values.phone) : "";
 					if (phone) await numbers.put(key, { phone });
 					else await numbers.delete(key);
-					return { ...editorPanel(phone, await pages.get(key)), toast: { type: "success", message: "Saved" } };
+					return { ...editorPanel(phone), toast: { type: "success", message: "Saved" } };
 				}
-
-				const [own, row] = await Promise.all([numbers.get(key), pages.get(key)]);
-				return editorPanel(own?.phone ?? "", row);
+				return editorPanel((await numbers.get(key))?.phone ?? "");
 			},
 		},
 	},

@@ -5,7 +5,7 @@
 	"publisher": "did:plc:vvm75pgx6ihqfuil7y5awyge",
 
 	"name": "WhatsApp Chat Button",
-	"description": "A WhatsApp button on every page. Visitors tap it and start chatting with you. See which pages bring the most chats.",
+	"description": "A WhatsApp button on every page. Visitors tap it and start chatting with you. Nothing to set up beyond your number.",
 	"keywords": ["whatsapp", "chat", "contact", "click to chat", "support"],
 
 	"license": "MIT",
@@ -32,23 +32,19 @@
 		"changelog": { "file": "docs/changelog.md" }
 	},
 
-	// Read entries only to show page titles in the tap counts.
+	// The plugin needs no access to your content or the outside world.
 	// The WhatsApp link opens in the visitor's own browser; nothing goes through your site.
-	"capabilities": ["content:read"],
+	"capabilities": [],
 	"allowedHosts": [],
 
 	"storage": {
-		// One row per page: running total of taps and the page title.
-		"pages": {
-			"indexes": ["total", "lastTapAt"]
-		},
-		// One row per page per day.
-		"daily": {
-			"indexes": ["day", "page", ["page", "day"]]
-		},
-		// One row per day for the whole site, so period sums stay fast.
-		"sitedaily": {
+		// Taps per day for the whole site. Kept for one year.
+		"days": {
 			"indexes": ["day"]
+		},
+		// Taps since install. Kept forever.
+		"totals": {
+			"indexes": []
 		},
 		// A different number for one entry, saved from the editor.
 		"numbers": {

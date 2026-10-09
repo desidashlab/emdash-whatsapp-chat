@@ -16,8 +16,8 @@ Yes. Open that post or page in the editor and use the **WhatsApp** box in the si
 
 ## Where do I see how many people tap it?
 
-On the Dashboard card: today, last 7 days, all time, and the three pages most chats start from. The WhatsApp Chat page has the full list with a period picker.
+On your Dashboard: chats started today, in the last 7 days against last week, and all time. Enough to know the button is working and worth keeping. The messages themselves tell you which page each visitor was on, because the message carries the page title.
 
 ## Does it track visitors?
 
-No. Only taps are counted, per page. No cookies, nothing personal stored, and the chat itself happens in the visitor's own WhatsApp.
+No. Only the number of taps is counted. No cookies, nothing personal stored, and the chat itself happens in the visitor's own WhatsApp.

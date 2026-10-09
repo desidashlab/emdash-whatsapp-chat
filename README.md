@@ -8,13 +8,13 @@ A WhatsApp button on every page of your [EmDash CMS](https://emdashcms.com) site
 - **A ready-typed message** that can include the page title and link, so you know what the visitor was reading.
 - **A greeting** shown once per visit, for example "We usually reply within an hour."
 - **A different number for one entry**, from the editor sidebar. Handy for a sales line on product pages.
-- **Tap counts per page**: Dashboard card with today, last 7 days, all time, and the pages most chats start from; a full page with the list of pages by taps.
+- **Three numbers on your Dashboard**: chats started today, last 7 days against last week, and all time. So you know it is working and worth it.
 
-Only taps are counted, per page. No cookies, nothing personal stored.
+Only the number of taps is counted. No cookies, nothing personal stored, and the plugin needs no access to your content.
 
 ## Install
 
-1. In your EmDash admin open **Registry**, search for **WhatsApp Chat Button**, and click **Install**.
+1. In your EmDash admin open **Registry**, search for **WhatsApp Chat Button**, and click **Install**. It asks for no permissions.
 2. Open **Plugins**, click **Settings** next to it, enter your WhatsApp number with the country code, and save.
 3. Open **WhatsApp Chat** in the left menu and copy the snippet into your theme's base layout, for example `src/layouts/Base.astro`, just before `</body>`. Once.
 
@@ -32,7 +32,7 @@ Only taps are counted, per page. No cookies, nothing personal stored.
 ## Public routes
 
 - `GET /_emdash/api/plugins/<plugin id>/config?path=/about&title=About` returns what the button should show on that page. Add `collection` and `id` on content pages so a per-entry number applies.
-- `POST /_emdash/api/plugins/<plugin id>/tap` with `{ collection, id, path, title }` records one tap.
+- `POST /_emdash/api/plugins/<plugin id>/tap` records one tap. The body is ignored.
 
 ## Development
 

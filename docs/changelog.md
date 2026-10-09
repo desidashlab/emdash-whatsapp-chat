@@ -3,4 +3,4 @@
 - First release. A WhatsApp button on every page with your number, message, text, and position.
 - Greeting shown once per visit.
 - A different number for any single entry, from the editor sidebar.
-- Tap counts per page on the Dashboard and the WhatsApp Chat page.
+- Chats started today, last 7 days, and all time on the Dashboard.
