@@ -188,7 +188,6 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	const total = (await stores(ctx).totals.get("all"))?.count ?? 0;
 
 	const where = s.position === "left" ? "bottom left" : "bottom right";
-	const message = s.message.replace(/\{title\}/g, "the page title").replace(/\{url\}/g, "the page link");
 	const blocks: Block[] = [
 		{ type: "header", text: "WhatsApp Chat" },
 		{
@@ -204,7 +203,8 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 		}
 		blocks.push(
 			{ type: "section", text: `${step++}. The green WhatsApp button sits at the ${where}${s.buttonText ? `, saying "${s.buttonText}"` : ""}.` },
-			{ type: "section", text: `${step++}. Tapping it opens WhatsApp to +${s.phone} with the message: "${message}"` },
+			{ type: "section", text: `${step++}. Tapping it opens WhatsApp to +${s.phone} with this message already typed. On a page called About it reads:` },
+			{ type: "context", text: s.message.replace(/\{title\}/g, "About").replace(/\{url\}/g, ctx.url("/about")) },
 			{
 				type: "section",
 				text: "Try it yourself, exactly as a visitor would get it.",
