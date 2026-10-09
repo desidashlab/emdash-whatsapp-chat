@@ -68,21 +68,21 @@ describe("the button", () => {
 });
 
 describe("per-entry choices in the editor", () => {
-	it("hides the button on one entry only", async () => {
+	it("hides the button on one page only", async () => {
 		await host.fixtures.plugin.setting("phone", "919876543210");
-		const saved = await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { hidden: true, phone: "" });
+		const saved = await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { show: false, phone: "" });
 		expect(saved.toast?.message).toBe("Saved");
 		expect(await config({ collection: "posts", id: "post-live", path: "/posts/hello", title: "Hello World" })).toEqual({ enabled: false });
 		expect((await config({ path: "/", title: "Home" })).enabled).toBe(true);
 
-		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { hidden: false, phone: "" });
+		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { show: true, phone: "" });
 		expect((await config({ collection: "posts", id: "post-live", path: "/posts/hello" })).enabled).toBe(true);
 		expect(await host.inspect.storage.list("numbers")).toHaveLength(0);
 	});
 
-	it("uses a different number on that entry only", async () => {
+	it("uses a different number on that page only", async () => {
 		await host.fixtures.plugin.setting("phone", "919876543210");
-		const saved = await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { hidden: false, phone: "+91 11111 22222" });
+		const saved = await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { show: true, phone: "+91 11111 22222" });
 		expect(saved.toast?.message).toBe("Saved");
 
 		const here = await config({ collection: "posts", id: "post-live", path: "/posts/hello", title: "Hello World" });
@@ -90,19 +90,19 @@ describe("per-entry choices in the editor", () => {
 		const home = await config({ path: "/", title: "Home" });
 		expect(home.href?.startsWith("https://wa.me/919876543210?")).toBe(true);
 
-		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { hidden: false, phone: "" });
+		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { show: true, phone: "" });
 		const again = await config({ collection: "posts", id: "post-live", path: "/posts/hello" });
 		expect(again.href?.startsWith("https://wa.me/919876543210?")).toBe(true);
 	});
 
 	it("shows both fields with their saved values", async () => {
-		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { hidden: true, phone: "919999988888" });
+		await host.admin.submitEditorPanel("whatsapp", "posts", "post-live", "save_entry", { show: false, phone: "919999988888" });
 		const panel = await host.admin.loadEditorPanel("whatsapp", "posts", "post-live");
 		expect(panel.blocks).toHaveLength(1);
 		const form = panel.blocks[0];
 		const fields = form && "fields" in form ? form.fields : [];
 		expect(fields.map((f) => ["type" in f ? f.type : "", "initial_value" in f ? f.initial_value : undefined])).toEqual([
-			["toggle", true],
+			["toggle", false],
 			["text_input", "919999988888"],
 		]);
 	});

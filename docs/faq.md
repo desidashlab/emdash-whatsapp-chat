@@ -24,4 +24,4 @@ No. Only the number of taps is counted. No cookies, nothing personal stored, and
 
 ## Can I hide it on some pages?
 
-Yes. Open the entry in the editor, find the WhatsApp panel in the sidebar, switch on "Hide the button on this entry" and save. It stays on everywhere else. Use it for a checkout page or a landing page where you do not want a chat starting.
+Yes. Open the page in the editor, find the WhatsApp panel in the sidebar, switch off "Show the WhatsApp button on this page" and save. It stays on everywhere else. Use it for a checkout page or a landing page where you do not want a chat starting.

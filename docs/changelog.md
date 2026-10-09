@@ -1,6 +1,6 @@
 ## 0.1.1
 
-- Hide the button on one entry, from the editor sidebar. On everywhere else, as before.
+- Switch the button off on one page, from the editor sidebar. It stays on everywhere else.
 
 ## 0.1.0
 

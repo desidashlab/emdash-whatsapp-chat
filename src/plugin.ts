@@ -250,15 +250,15 @@ function editorPanel(saved: NumberRow): BlockResponse {
 				fields: [
 					{
 						type: "toggle",
-						action_id: "hidden",
-						label: "Hide the button on this entry",
-						description: "For a checkout or landing page, for example.",
-						initial_value: saved.hidden === true,
+						action_id: "show",
+						label: "Show the WhatsApp button on this page",
+						description: "Switch off for a checkout or landing page.",
+						initial_value: saved.hidden !== true,
 					},
 					{
 						type: "text_input",
 						action_id: "phone",
-						label: "Different WhatsApp number for this entry",
+						label: "WhatsApp number for this page only",
 						placeholder: "Leave empty to use the site number",
 						initial_value: saved.phone ?? "",
 					},
@@ -359,7 +359,7 @@ const plugin: SandboxedPlugin = {
 			},
 		},
 
-		/** Editor sidebar: hide the button on this entry, or give it a different number. */
+		/** Editor sidebar: show or hide the button on this page, or give it a different number. */
 		"editor/whatsapp": {
 			permission: "plugins:manage",
 			handler: async (routeCtx, ctx) => {
@@ -371,7 +371,7 @@ const plugin: SandboxedPlugin = {
 
 				if (i.type === "form_submit" && i.action_id === "save_entry") {
 					const phone = typeof i.values?.phone === "string" ? digitsOnly(i.values.phone) : "";
-					const hidden = i.values?.hidden === true;
+					const hidden = i.values?.show === false;
 					const row: NumberRow = {};
 					if (phone) row.phone = phone;
 					if (hidden) row.hidden = true;
