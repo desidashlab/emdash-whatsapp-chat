@@ -102,19 +102,20 @@ describe("counting taps", () => {
 		expect(await host.inspect.storage.list("numbers")).toHaveLength(0);
 	});
 
-	it("sums up the week on the dashboard card", async () => {
-		expect((await host.admin.loadWidget("chats")).blocks[0]?.type).toBe("empty");
-
+	it("sums up the week in one sentence on the page", async () => {
 		await host.fixtures.plugin.setting("phone", "919876543210");
+		const before = await host.admin.loadPage("/overview");
+		const lineBefore = before.blocks.find((b) => b.type === "context" && "text" in b && b.text.includes("tapped"));
+		expect(lineBefore && "text" in lineBefore ? lineBefore.text : "").toBe("No one has tapped the button yet.");
+
 		const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 		await host.fixtures.plugin.storage("days", yesterday, { day: yesterday, count: 4 });
 		await host.fixtures.plugin.storage("totals", "all", { count: 4 });
 		await tap();
 
-		const w = await host.admin.loadWidget("chats");
-		expect(w.blocks.map((b) => b.type)).toEqual(["section", "context"]);
-		const line = w.blocks[1];
-		expect(line && "text" in line ? line.text : "").toBe("5 chats started in the last 7 days. 5 chats all time.");
+		const after = await host.admin.loadPage("/overview");
+		const line = after.blocks.find((b) => b.type === "context" && "text" in b && b.text.includes("tapped"));
+		expect(line && "text" in line ? line.text : "").toBe("Visitors have tapped the button 5 times this week, and 5 times since you added it.");
 	});
 });
 

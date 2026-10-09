@@ -114,13 +114,11 @@ async function tapsBetween(ctx: PluginContext, fromDaysAgo: number, toDaysAgo: n
 
 async function chatsSentence(ctx: PluginContext): Promise<string> {
 	const { totals } = stores(ctx);
-	const [week, prevWeek, all] = await Promise.all([tapsBetween(ctx, 6, 0), tapsBetween(ctx, 13, 7), totals.get("all")]);
+	const [week, all] = await Promise.all([tapsBetween(ctx, 6, 0), totals.get("all")]);
 	const total = all?.count ?? 0;
-	if (total === 0) return "No chats started yet.";
-	const chats = (n: number) => `${fmt(n)} ${n === 1 ? "chat" : "chats"}`;
-	const weekPart = `${chats(week)} started in the last 7 days`;
-	const prevPart = prevWeek > 0 ? `, ${fmt(prevWeek)} the week before` : "";
-	return `${weekPart}${prevPart}. ${chats(total)} all time.`;
+	if (total === 0) return "No one has tapped the button yet.";
+	const times = (n: number) => `${fmt(n)} ${n === 1 ? "time" : "times"}`;
+	return `Visitors have tapped the button ${times(week)} this week, and ${times(total)} since you added it.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -219,6 +217,7 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 					},
 				},
 			},
+			{ type: "context", text: await chatsSentence(ctx) },
 		);
 	}
 
@@ -239,33 +238,6 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 		blocks.push({ type: "accordion", label: "Setup", default_open: false, blocks: setup });
 	}
 	return { blocks };
-}
-
-async function chatsWidget(ctx: PluginContext): Promise<BlockResponse> {
-	const s = await loadSettings(ctx);
-	if (!s.phone) {
-		return {
-			blocks: [
-				{
-					type: "empty",
-					title: "Add your WhatsApp number",
-					description: "The button appears on your site once a number is set.",
-					size: "sm",
-					actions: [{ type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "primary" }],
-				},
-			],
-		};
-	}
-	return {
-		blocks: [
-			{
-				type: "section",
-				text: `Button is on. Chats go to +${s.phone}.`,
-				accessory: { type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "secondary" },
-			},
-			{ type: "context", text: await chatsSentence(ctx) },
-		],
-	};
 }
 
 function editorPanel(saved: string): BlockResponse {
@@ -373,9 +345,7 @@ const plugin: SandboxedPlugin = {
 		/** Admin page and dashboard card. */
 		admin: {
 			permission: "plugins:manage",
-			handler: async (routeCtx, ctx) => {
-				const i = (routeCtx.input ?? {}) as { page?: string };
-				if (routeCtx.ui?.surface === "dashboard-widget" || i.page === "widget:chats") return chatsWidget(ctx);
+			handler: async (_routeCtx, ctx) => {
 				return overviewPage(ctx);
 			},
 		},

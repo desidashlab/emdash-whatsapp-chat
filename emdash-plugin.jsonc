@@ -20,7 +20,6 @@
 			"screenshots": [
 				{ "file": "assets/screenshot-site.jpg" },
 				{ "file": "assets/screenshot-overview.jpg" },
-				{ "file": "assets/screenshot-dashboard.jpg" },
 				{ "file": "assets/screenshot-editor.jpg" }
 			]
 		}
@@ -54,7 +53,6 @@
 
 	"admin": {
 		"pages": [{ "path": "/overview", "label": "WhatsApp Chat", "icon": "chat" }],
-		"widgets": [{ "id": "chats", "title": "WhatsApp chats", "size": "half" }],
 		"editorPanels": [{ "id": "whatsapp", "title": "WhatsApp", "route": "editor/whatsapp" }],
 		"settingsSchema": {
 			"phone": {
