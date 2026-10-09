@@ -19,6 +19,7 @@
 			"banner": { "file": "assets/banner.png" },
 			"screenshots": [
 				{ "file": "assets/screenshot-site.jpg" },
+					{ "file": "assets/screenshot-settings.jpg" },
 				{ "file": "assets/screenshot-overview.jpg" },
 				{ "file": "assets/screenshot-editor.jpg" }
 			]
