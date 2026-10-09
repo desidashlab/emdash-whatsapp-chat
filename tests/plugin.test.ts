@@ -102,7 +102,7 @@ describe("counting taps", () => {
 		expect(await host.inspect.storage.list("numbers")).toHaveLength(0);
 	});
 
-	it("shows the three numbers on the dashboard card", async () => {
+	it("sums up the week on the dashboard card", async () => {
 		expect((await host.admin.loadWidget("chats")).blocks[0]?.type).toBe("empty");
 
 		await host.fixtures.plugin.setting("phone", "919876543210");
@@ -112,13 +112,9 @@ describe("counting taps", () => {
 		await tap();
 
 		const w = await host.admin.loadWidget("chats");
-		const stats = w.blocks[0];
-		const items = stats && "items" in stats ? stats.items : [];
-		expect(items.map((i) => [i.label, i.value, i.description])).toEqual([
-			["Today", "1", "Yesterday: 4"],
-			["Last 7 days", "5", "No earlier data yet"],
-			["All time", "5", expect.stringMatching(/^Since /)],
-		]);
+		expect(w.blocks.map((b) => b.type)).toEqual(["section", "context"]);
+		const line = w.blocks[1];
+		expect(line && "text" in line ? line.text : "").toBe("5 chats started in the last 7 days. 5 chats all time.");
 	});
 });
 
@@ -139,7 +135,9 @@ describe("the page", () => {
 		expect(t2).toContain("accordion");
 		expect(t2).not.toContain("banner");
 		expect(t2).not.toContain("stats");
-		expect(t2).not.toContain("table");
+		expect(t2).not.toContain("fields");
+		const steps = after.blocks.filter((b) => b.type === "section" && "text" in b && /^\d\. /.test(b.text));
+		expect(steps).toHaveLength(3);
 	});
 });
 

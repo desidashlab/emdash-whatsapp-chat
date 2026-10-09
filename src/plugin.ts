@@ -109,37 +109,18 @@ async function tapsBetween(ctx: PluginContext, fromDaysAgo: number, toDaysAgo: n
 }
 
 /* ------------------------------------------------------------------ */
-/* The three numbers                                                   */
+/* One sentence about how it is going                                  */
 /* ------------------------------------------------------------------ */
 
-async function numberCards(ctx: PluginContext) {
-	const { totals, days } = stores(ctx);
-	const [t, y, week, prevWeek, all, first] = await Promise.all([
-		tapsBetween(ctx, 0, 0),
-		tapsBetween(ctx, 1, 1),
-		tapsBetween(ctx, 6, 0),
-		tapsBetween(ctx, 13, 7),
-		totals.get("all"),
-		days.query({ orderBy: { day: "asc" }, limit: 1 }),
-	]);
-	const since = first.items[0]?.data.day;
-	const sinceText = since
-		? new Date(`${since}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
-		: "today";
-	const weekCard =
-		prevWeek === 0
-			? { label: "Last 7 days", value: fmt(week), description: "No earlier data yet" }
-			: {
-					label: "Last 7 days",
-					value: fmt(week),
-					trend: week === prevWeek ? ("neutral" as const) : week > prevWeek ? ("up" as const) : ("down" as const),
-					description: `Last week: ${fmt(prevWeek)}`,
-				};
-	return [
-		{ label: "Today", value: fmt(t), description: `Yesterday: ${fmt(y)}` },
-		weekCard,
-		{ label: "All time", value: fmt(all?.count ?? 0), description: `Since ${sinceText}` },
-	];
+async function chatsSentence(ctx: PluginContext): Promise<string> {
+	const { totals } = stores(ctx);
+	const [week, prevWeek, all] = await Promise.all([tapsBetween(ctx, 6, 0), tapsBetween(ctx, 13, 7), totals.get("all")]);
+	const total = all?.count ?? 0;
+	if (total === 0) return "No chats started yet.";
+	const chats = (n: number) => `${fmt(n)} ${n === 1 ? "chat" : "chats"}`;
+	const weekPart = `${chats(week)} started in the last 7 days`;
+	const prevPart = prevWeek > 0 ? `, ${fmt(prevWeek)} the week before` : "";
+	return `${weekPart}${prevPart}. ${chats(total)} all time.`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -208,36 +189,37 @@ async function overviewPage(ctx: PluginContext): Promise<BlockResponse> {
 	const s = await loadSettings(ctx);
 	const total = (await stores(ctx).totals.get("all"))?.count ?? 0;
 
+	const where = s.position === "left" ? "bottom left" : "bottom right";
+	const message = s.message.replace(/\{title\}/g, "the page title").replace(/\{url\}/g, "the page link");
 	const blocks: Block[] = [
 		{ type: "header", text: "WhatsApp Chat" },
 		{
 			type: "section",
-			text: s.phone ? "What visitors see" : "Add your WhatsApp number to switch the button on.",
+			text: s.phone ? "What a visitor sees on your site" : "Add your WhatsApp number to switch the button on.",
 			accessory: { type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "secondary" },
-		},
-		{
-			type: "fields",
-			fields: [
-				{ label: "Chats go to", value: s.phone ? `+${s.phone}` : "Not set" },
-				{ label: "Button", value: `${s.buttonText || "Icon only"}, ${s.position === "left" ? "bottom left" : "bottom right"}` },
-				{ label: "Message starts with", value: s.message.replace(/\{title\}/g, "the page title").replace(/\{url\}/g, "the page link") },
-				{ label: "Greeting", value: s.greeting && s.greetingText ? s.greetingText : "Off" },
-			],
 		},
 	];
 	if (s.phone) {
-		blocks.push({
-			type: "section",
-			text: "Try it yourself: this opens a chat with your number, exactly as a visitor would get it.",
-			accessory: {
-				type: "link",
-				label: "Open a test chat",
-				target: {
-					kind: "external",
-					url: `https://wa.me/${s.phone}?text=${encodeURIComponent(s.message.replace(/\{title\}/g, "Test").replace(/\{url\}/g, ctx.site.url))}`,
+		let step = 1;
+		if (s.greeting && s.greetingText) {
+			blocks.push({ type: "section", text: `${step++}. After a few seconds a small greeting appears: "${s.greetingText}"` });
+		}
+		blocks.push(
+			{ type: "section", text: `${step++}. The green WhatsApp button sits at the ${where}${s.buttonText ? `, saying "${s.buttonText}"` : ""}.` },
+			{ type: "section", text: `${step++}. Tapping it opens WhatsApp to +${s.phone} with the message: "${message}"` },
+			{
+				type: "section",
+				text: "Try it yourself, exactly as a visitor would get it.",
+				accessory: {
+					type: "link",
+					label: "Open a test chat",
+					target: {
+						kind: "external",
+						url: `https://wa.me/${s.phone}?text=${encodeURIComponent(s.message.replace(/\{title\}/g, "Test").replace(/\{url\}/g, ctx.site.url))}`,
+					},
 				},
 			},
-		});
+		);
 	}
 
 	const setup: Block[] = [
@@ -276,8 +258,12 @@ async function chatsWidget(ctx: PluginContext): Promise<BlockResponse> {
 	}
 	return {
 		blocks: [
-			{ type: "stats", items: await numberCards(ctx) },
-			{ type: "context", text: "Chats started from the button on your site." },
+			{
+				type: "section",
+				text: `Button is on. Chats go to +${s.phone}.`,
+				accessory: { type: "link", label: "Settings", target: { kind: "plugin-settings" }, appearance: "secondary" },
+			},
+			{ type: "context", text: await chatsSentence(ctx) },
 		],
 	};
 }

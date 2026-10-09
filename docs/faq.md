@@ -16,7 +16,7 @@ Yes. Open that post or page in the editor and use the **WhatsApp** box in the si
 
 ## Where do I see how many people tap it?
 
-On your Dashboard: chats started today, in the last 7 days against last week, and all time. Enough to know the button is working and worth keeping. The messages themselves tell you which page each visitor was on, because the message carries the page title.
+On your Dashboard, in one line: chats started in the last 7 days, the week before, and all time. Enough to know the button is working and worth keeping. The messages themselves tell you which page each visitor was on, because the message carries the page title.
 
 ## Does it track visitors?
 
